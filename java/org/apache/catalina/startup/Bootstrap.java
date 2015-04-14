@@ -36,6 +36,10 @@ import org.apache.juli.logging.LogFactory;
 
 
 /**
+ * Catalina加载脚本，这段程序构建一个用户加载Catalina内部类的类加载器（加载所有服务找到的在catalina。home目录下的文件？）
+ * 启动常规调用，使用这种间接方法启动时为了保证Catalina内部的类（及其他需要的类，入xml解析）不在系统类目录，不被其他应用访问到
+ * 
+ * 
  * Bootstrap loader for Catalina.  This application constructs a class loader
  * for use in loading the Catalina internal classes (by accumulating all of the
  * JAR files found in the "server" directory under "catalina.home"), and
@@ -63,10 +67,11 @@ public final class Bootstrap {
 
     static {
         // Will always be non-null
-        String userDir = System.getProperty("user.dir");
+        String userDir = System.getProperty("user.dir");				//当前用户工作目录
 
         // Home first
-        String home = System.getProperty(Globals.CATALINA_HOME_PROP);
+        // 先从home目录加载
+        String home = System.getProperty(Globals.CATALINA_HOME_PROP);	//读取home路径（安装路径），此处在vm arguments中设置为tomcat安装目录
         File homeFile = null;
 
         if (home != null) {
@@ -78,12 +83,16 @@ public final class Bootstrap {
             }
         }
 
-        if (homeFile == null) {
+
+        
+        if (homeFile == null) {											//找不到home文件夹
             // First fall-back. See if current directory is a bin directory
             // in a normal Tomcat install
-            File bootstrapJar = new File(userDir, "bootstrap.jar");
+        	// 第一次加载失败，判断此处目录是不是tomcat安装目录的bin文件夹
+        	
+            File bootstrapJar = new File(userDir, "bootstrap.jar");		//从用户目录中加载bootstrap.jar文件
 
-            if (bootstrapJar.exists()) {
+            if (bootstrapJar.exists()) {	
                 File f = new File(userDir, "..");
                 try {
                     homeFile = f.getCanonicalFile();
@@ -95,6 +104,8 @@ public final class Bootstrap {
 
         if (homeFile == null) {
             // Second fall-back. Use current directory
+        	//再次失败，使用用户工作目录
+        	
             File f = new File(userDir);
             try {
                 homeFile = f.getCanonicalFile();
@@ -103,9 +114,8 @@ public final class Bootstrap {
             }
         }
 
-        catalinaHomeFile = homeFile;
-        System.setProperty(
-                Globals.CATALINA_HOME_PROP, catalinaHomeFile.getPath());
+        catalinaHomeFile = homeFile;														//保存home文件夹
+        System.setProperty(Globals.CATALINA_HOME_PROP, catalinaHomeFile.getPath());			//设置系统参数（系统路径）
 
         // Then base
         String base = System.getProperty(Globals.CATALINA_BASE_PROP);
@@ -141,6 +151,7 @@ public final class Bootstrap {
     // -------------------------------------------------------- Private Methods
 
 
+    /**初始化类加载器*/
     private void initClassLoaders() {
         try {
             commonLoader = createClassLoader("common", null);
@@ -443,13 +454,15 @@ public final class Bootstrap {
     /**
      * Main method and entry point when starting Tomcat via the provided
      * scripts.
+     * 
+     *	程序入口
      *
      * @param args Command line arguments to be processed
      */
     public static void main(String args[]) {
-
+    	System.out.println("main");
         if (daemon == null) {
-            // Don't set daemon until init() has completed
+            // Don't set daemon until init() has completed 初始化完成后再设置deamon
             Bootstrap bootstrap = new Bootstrap();
             try {
                 bootstrap.init();
@@ -463,6 +476,7 @@ public final class Bootstrap {
             // When running as a service the call to stop will be on a new
             // thread so make sure the correct class loader is used to prevent
             // a range of class not found exceptions.
+        	// 在新线程上防止加载异常？暂时没看明白
             Thread.currentThread().setContextClassLoader(daemon.catalinaLoader);
         }
 

@@ -642,6 +642,7 @@ public class Tomcat {
             }
             server.setCatalinaHome(homeFile);
         }
+
         System.setProperty(Globals.CATALINA_HOME_PROP,
                 server.getCatalinaHome().getPath());
     }

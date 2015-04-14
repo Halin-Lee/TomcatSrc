@@ -26,6 +26,8 @@ import java.util.Properties;
 
 
 /**
+ * 工具类，负责加载启动参数
+ * 
  * Utility class to read the bootstrap Catalina configuration.
  *
  * @author Remy Maucherat
@@ -60,7 +62,7 @@ public class CatalinaProperties {
         Throwable error = null;
 
         try {
-            String configUrl = System.getProperty("catalina.config");
+            String configUrl = System.getProperty("catalina.config");	//获得系统参数（此处得到空）
             if (configUrl != null) {
                 is = (new URL(configUrl)).openStream();
             }

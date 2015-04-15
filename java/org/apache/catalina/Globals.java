@@ -279,6 +279,9 @@ public final class Globals {
 
 
     /**
+     * 
+     * 包含tomcat安装目录的系统参数
+     * 
      * Name of the system property containing
      * the tomcat instance installation path
      */

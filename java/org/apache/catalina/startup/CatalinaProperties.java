@@ -24,9 +24,12 @@ import java.net.URL;
 import java.util.Enumeration;
 import java.util.Properties;
 
+import me.halin.lee.debug.DebugLog;
+
 
 /**
  * 工具类，负责加载启动参数
+ * 调试时使用的是D:\Program Files\Apache Software Foundation\Tomcat 8.0\conf\catalina.properties
  * 
  * Utility class to read the bootstrap Catalina configuration.
  *
@@ -37,11 +40,13 @@ public class CatalinaProperties {
     private static final org.apache.juli.logging.Log log=
         org.apache.juli.logging.LogFactory.getLog( CatalinaProperties.class );
 
+    /**从配置文件读取的参数信息*/
     private static Properties properties = null;
 
 
     static {
-        loadProperties();
+    	//加载参数
+    	loadProperties();		
     }
 
 
@@ -54,15 +59,19 @@ public class CatalinaProperties {
 
 
     /**
+     * 加载参数
+     * 
      * Load properties.
      */
     private static void loadProperties() {
 
+    	
+    	//加载properties
         InputStream is = null;
         Throwable error = null;
 
         try {
-            String configUrl = System.getProperty("catalina.config");	//获得系统参数（此处得到空）
+            String configUrl = System.getProperty("catalina.config");		//获得系统参数（此处得到空）
             if (configUrl != null) {
                 is = (new URL(configUrl)).openStream();
             }
@@ -72,16 +81,17 @@ public class CatalinaProperties {
 
         if (is == null) {
             try {
-                File home = new File(Bootstrap.getCatalinaBase());
-                File conf = new File(home, "conf");
-                File propsFile = new File(conf, "catalina.properties");
-                is = new FileInputStream(propsFile);
+                File home = new File(Bootstrap.getCatalinaBase());			//获得根路径(此处使用该文件)
+                File conf = new File(home, "conf");							//conf文件夹
+                File propsFile = new File(conf, "catalina.properties");		//读取catalina。properties文件
+                is = new FileInputStream(propsFile);						//创建流
+
             } catch (Throwable t) {
                 handleThrowable(t);
             }
         }
 
-        if (is == null) {
+        if (is == null) {													//仍然为空，使用默认的properties
             try {
                 is = CatalinaProperties.class.getResourceAsStream
                     ("/org/apache/catalina/startup/catalina.properties");
@@ -90,7 +100,8 @@ public class CatalinaProperties {
             }
         }
 
-        if (is != null) {
+        //初始化properties
+        if (is != null) {													
             try {
                 properties = new Properties();
                 properties.load(is);
@@ -106,20 +117,22 @@ public class CatalinaProperties {
             }
         }
 
-        if ((is == null) || (error != null)) {
+    	//输入流为空，报错
+        if ((is == null) || (error != null)) {							
             // Do something
             log.warn("Failed to load catalina.properties", error);
             // That's fine - we have reasonable defaults.
             properties = new Properties();
         }
 
+        //将properties写入系统参数
         // Register the properties as system properties
-        Enumeration<?> enumeration = properties.propertyNames();
-        while (enumeration.hasMoreElements()) {
-            String name = (String) enumeration.nextElement();
-            String value = properties.getProperty(name);
+        Enumeration<?> enumeration = properties.propertyNames();	
+        while (enumeration.hasMoreElements()) {						//遍历properties的name
+            String name = (String) enumeration.nextElement();		//获得name
+            String value = properties.getProperty(name);			//获得value
             if (value != null) {
-                System.setProperty(name, value);
+                System.setProperty(name, value);					//写入property
             }
         }
     }

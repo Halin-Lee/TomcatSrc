@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+
 import org.apache.catalina.Globals;
 import org.apache.catalina.security.SecurityClassLoad;
 import org.apache.catalina.startup.ClassLoaderFactory.Repository;
@@ -34,6 +35,7 @@ import org.apache.catalina.startup.ClassLoaderFactory.RepositoryType;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 
+import me.halin.lee.debug.DebugLog;
 
 /**
  * Catalina加载脚本，这段程序构建一个用户加载Catalina内部类的类加载器（加载所有服务找到的在catalina。home目录下的文件？）
@@ -65,7 +67,9 @@ public final class Bootstrap {
 
     private static final Pattern PATH_PATTERN = Pattern.compile("(\".*?\")|(([^,])*)");
 
+    /**主要完成对系统路径的加载*/
     static {
+    	
         // Will always be non-null
         String userDir = System.getProperty("user.dir");				//当前用户工作目录
 
@@ -118,8 +122,8 @@ public final class Bootstrap {
         System.setProperty(Globals.CATALINA_HOME_PROP, catalinaHomeFile.getPath());			//设置系统参数（系统路径）
 
         // Then base
-        String base = System.getProperty(Globals.CATALINA_BASE_PROP);
-        if (base == null) {
+        String base = System.getProperty(Globals.CATALINA_BASE_PROP);						//此处无设置，base为空
+        if (base == null) {																	//base为空，使用home
             catalinaBaseFile = catalinaHomeFile;
         } else {
             File baseFile = new File(base);
@@ -130,8 +134,7 @@ public final class Bootstrap {
             }
             catalinaBaseFile = baseFile;
         }
-        System.setProperty(
-                Globals.CATALINA_BASE_PROP, catalinaBaseFile.getPath());
+        System.setProperty(Globals.CATALINA_BASE_PROP, catalinaBaseFile.getPath());			//base路径
     }
 
     // -------------------------------------------------------------- Variables
@@ -168,25 +171,31 @@ public final class Bootstrap {
         }
     }
 
-
+    /**创建类加载器
+     * @param 加载器类型
+     * 
+     * */
     private ClassLoader createClassLoader(String name, ClassLoader parent)
         throws Exception {
 
-        String value = CatalinaProperties.getProperty(name + ".loader");
+        String value = CatalinaProperties.getProperty(name + ".loader");	//从property加载路径
         if ((value == null) || (value.equals("")))
             return parent;
 
-        value = replace(value);
+        value = replace(value);												//替换路径文本
 
         List<Repository> repositories = new ArrayList<>();
 
         String[] repositoryPaths = getPaths(value);
 
         for (String repository : repositoryPaths) {
+        	
+
+        	//尝试格式化为一个url仓库，可以解析为url则新建url仓库，否则不做处理
             // Check for a JAR URL repository
             try {
                 @SuppressWarnings("unused")
-                URL url = new URL(repository);
+                URL url = new URL(repository);								
                 repositories.add(
                         new Repository(repository, RepositoryType.URL));
                 continue;
@@ -194,18 +203,18 @@ public final class Bootstrap {
                 // Ignore
             }
 
+            //jar包
             // Local repository
-            if (repository.endsWith("*.jar")) {
-                repository = repository.substring
-                    (0, repository.length() - "*.jar".length());
-                repositories.add(
-                        new Repository(repository, RepositoryType.GLOB));
+            if (repository.endsWith("*.jar")) {							
+            	//以*.jar作为结尾，去掉*.jar作为路径
+                repository = repository.substring(0, repository.length() - "*.jar".length());
+                repositories.add(new Repository(repository, RepositoryType.GLOB));
             } else if (repository.endsWith(".jar")) {
-                repositories.add(
-                        new Repository(repository, RepositoryType.JAR));
+            	//以。jar为结尾，以jar包为路径
+                repositories.add(new Repository(repository, RepositoryType.JAR));
             } else {
-                repositories.add(
-                        new Repository(repository, RepositoryType.DIR));
+            	//以目录为路径
+                repositories.add(new Repository(repository, RepositoryType.DIR));
             }
         }
 
@@ -214,31 +223,39 @@ public final class Bootstrap {
 
 
     /**
+     * 系统参数字符替换
+     * 
      * System property replacement in the given string.
      *
      * @param str The original string
      * @return the modified string
      */
     protected String replace(String str) {
+    	
+    	//从ClassLoaderLogManager。replace复制过来
+    	//但是添加了对catalina.home 和 catalina.base的特殊处理
         // Implementation is copied from ClassLoaderLogManager.replace(),
         // but added special processing for catalina.home and catalina.base.
         String result = str;
-        int pos_start = str.indexOf("${");
-        if (pos_start >= 0) {
-            StringBuilder builder = new StringBuilder();
-            int pos_end = -1;
+        int pos_start = str.indexOf("${");							//寻找"${"替换开头
+        if (pos_start >= 0) {										//找到需要替换的文本
+            StringBuilder builder = new StringBuilder();			
+            int pos_end = -1;										//替换结束位
             while (pos_start >= 0) {
-                builder.append(str, pos_end + 1, pos_start);
-                pos_end = str.indexOf('}', pos_start + 2);
-                if (pos_end < 0) {
-                    pos_end = pos_start - 1;
-                    break;
+                builder.append(str, pos_end + 1, pos_start);		//插入上个需替换位置的结束位到新的开始位 （第一次相当于插入到最后）
+//                DebugLog.log("building : "+builder.toString());	//测试
+                pos_end = str.indexOf('}', pos_start + 2);			//寻找从开始位 +开始符长度到结束的位置
+                if (pos_end < 0) {									//找不到结束位
+                    pos_end = pos_start - 1;						//结束位等于下个开始位
+                    break;											//跳出循环
                 }
-                String propName = str.substring(pos_start + 2, pos_end);
-                String replacement;
-                if (propName.length() == 0) {
+                String propName = str.substring(pos_start + 2, pos_end);	//获得替换位置
+                String replacement;											//替换成的文本
+                
+                //替换文本
+                if (propName.length() == 0) {							
                     replacement = null;
-                } else if (Globals.CATALINA_HOME_PROP.equals(propName)) {
+                } else if (Globals.CATALINA_HOME_PROP.equals(propName)) {	
                     replacement = getCatalinaHome();
                 } else if (Globals.CATALINA_BASE_PROP.equals(propName)) {
                     replacement = getCatalinaBase();
@@ -261,6 +278,7 @@ public final class Bootstrap {
 
     /**
      * Initialize daemon.
+     * 初始化daemon
      */
     public void init() throws Exception {
 
@@ -460,7 +478,8 @@ public final class Bootstrap {
      * @param args Command line arguments to be processed
      */
     public static void main(String args[]) {
-    	System.out.println("main");
+    	
+    	
         if (daemon == null) {
             // Don't set daemon until init() has completed 初始化完成后再设置deamon
             Bootstrap bootstrap = new Bootstrap();
@@ -571,31 +590,37 @@ public final class Bootstrap {
         // All other instances of Throwable will be silently swallowed
     }
 
-
+    /**
+     * 解析value，获得其中包含路径
+     * 
+     * 因单元测试需要设置为protected
+     * */
     // Protected for unit testing
     protected static String[] getPaths(String value) {
 
         List<String> result = new ArrayList<>();
-        Matcher matcher = PATH_PATTERN.matcher(value);
+        Matcher matcher = PATH_PATTERN.matcher(value);						//正则匹配
 
         while (matcher.find()) {
-            String path = value.substring(matcher.start(), matcher.end());
+            String path = value.substring(matcher.start(), matcher.end());	//切割路径
 
-            path = path.trim();
-            if (path.length() == 0) {
+            path = path.trim();												//移除左右空白
+            if (path.length() == 0) {										//长度为0，忽略
                 continue;
             }
 
-            char first = path.charAt(0);
-            char last = path.charAt(path.length() - 1);
+            char first = path.charAt(0);									
+            char last = path.charAt(path.length() - 1);									
 
-            if (first == '"' && last == '"' && path.length() > 1) {
+            if (first == '"' && last == '"' && path.length() > 1) {		
+            	//移除左右成对的"
                 path = path.substring(1, path.length() - 1);
                 path = path.trim();
                 if (path.length() == 0) {
                     continue;
                 }
             } else if (path.contains("\"")) {
+            	//"不成对，报错
                 // Unbalanced quotes
                 // Too early to use standard i18n support. The class path hasn't
                 // been configured.
@@ -606,8 +631,8 @@ public final class Bootstrap {
                 // Not quoted - NO-OP
             }
 
-            result.add(path);
+            result.add(path);												//添加结果
         }
-        return result.toArray(new String[result.size()]);
+        return result.toArray(new String[result.size()]);				
     }
 }

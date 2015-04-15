@@ -24,21 +24,26 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
+ * Tomcat的默认log
+ * 
  * Hardcoded java.util.logging commons-logging implementation.
  */
 class DirectJDKLog implements Log {
-    // no reason to hide this - but good reasons to not hide
+    // 没有理由隐藏它，但有理由不隐藏它
+	// no reason to hide this - but good reasons to not hide
     public final Logger logger;
 
     /** Alternate config reader and console format
      */
     private static final String SIMPLE_FMT="java.util.logging.SimpleFormatter";
-    private static final String SIMPLE_CFG="org.apache.juli.JdkLoggerConfig"; //doesn't exist
+    private static final String SIMPLE_CFG="org.apache.juli.JdkLoggerConfig"; //doesn't exist 不存在。。囧
     private static final String FORMATTER="org.apache.juli.formatter";
 
     static {
-        if( System.getProperty("java.util.logging.config.class") ==null  &&
+        if( System.getProperty("java.util.logging.config.class") ==null  &&				//参数默认为空
                 System.getProperty("java.util.logging.config.file") ==null ) {
+        	
+        	// 默认参数 - 糟糕透了，覆盖它让他至少能格式化输出到控制台
             // default configuration - it sucks. Let's override at least the
             // formatter for the console
             try {
@@ -46,18 +51,23 @@ class DirectJDKLog implements Log {
             } catch( Throwable t ) {
             }
             try {
-                Formatter fmt=(Formatter)Class.forName(System.getProperty(FORMATTER, SIMPLE_FMT)).newInstance();
+                Formatter fmt=(Formatter)Class.forName(System.getProperty(FORMATTER, SIMPLE_FMT)).newInstance();	//获得日志输出formatter 没则使用默认formatter 
+                
+                //将ConsoleHandler的Formatter设置为fmt
+                //也有可能用户修改了logging.properties，但大部分情况下是很愚蠢的 
                 // it is also possible that the user modified jre/lib/logging.properties -
                 // but that's really stupid in most cases
-                Logger root=Logger.getLogger("");
-                Handler handlers[]=root.getHandlers();
+                Logger root=Logger.getLogger("");																	//获得系统的root logger
+                Handler handlers[]=root.getHandlers();																//遍历loggerhandler
                 for( int i=0; i< handlers.length; i++ ) {
-                    // I only care about console - that's what's used in default config anyway
+                	// 我只关心控制台  - 无论如何使用默设置
+                    // I only care about console - that's what's used in default config anyway	
                     if( handlers[i] instanceof  ConsoleHandler ) {
                         handlers[i].setFormatter(fmt);
                     }
                 }
             } catch( Throwable t ) {
+            	//可能不包含，那就使用最丑陋的原始设置
                 // maybe it wasn't included - the ugly default will be used.
             }
 
@@ -158,6 +168,10 @@ class DirectJDKLog implements Log {
         log(Level.SEVERE, String.valueOf(message), t);
     }
 
+    
+    // 从公共日志，这是我认为 java.util.logging差的最总要原因 - 通过委员会设计真是糟糕，使用 java.util.logging 对性能的影响
+    // 当你需要封装它时的凑楼  他比默认的不友善，不常见的默认格式日志还糟糕
+    
     // from commons logging. This would be my number one reason why java.util.logging
     // is bad - design by committee can be really bad ! The impact on performance of
     // using java.util.logging - and the ugliness if you need to wrap it - is far
@@ -165,19 +179,22 @@ class DirectJDKLog implements Log {
 
     private void log(Level level, String msg, Throwable ex) {
         if (logger.isLoggable(level)) {
+        	//通过黑手段获得堆栈跟踪
             // Hack (?) to get the stack trace.
             Throwable dummyException=new Throwable();
             StackTraceElement locations[]=dummyException.getStackTrace();
+            //第三个参数是调用者
             // Caller will be the third element
-            String cname = "unknown";
-            String method = "unknown";
-            if (locations != null && locations.length >2) {
-                StackTraceElement caller = locations[2];
-                cname = caller.getClassName();
-                method = caller.getMethodName();
+            String cname = "unknown";								//调用者名称
+            String method = "unknown";								//调用方法
+            if (locations != null && locations.length >2) {			//如果有三个堆栈元素
+                StackTraceElement caller = locations[2];			//获得调用者
+                cname = caller.getClassName();						//获得调用者名称
+                method = caller.getMethodName();					//获得调用者方法
             }
-            if (ex==null) {
-                logger.logp(level, cname, method, msg);
+            //打印
+            if (ex==null) {											
+                logger.logp(level, cname, method, msg);			
             } else {
                 logger.logp(level, cname, method, msg, ex);
             }

@@ -22,6 +22,10 @@ import java.util.ServiceLoader;
 import java.util.logging.LogManager;
 
 /**
+ * 
+ * Log工厂类，默认从服务加载器加载log构造函数，为空（默认为空）则使用DirctJDKLog作为默认log
+ * 
+ * 
  * This is a modified LogFactory that uses a simple {@link ServiceLoader} based
  * discovery mechanism with a default of using JDK based logging. An
  * implementation that uses the full Commons Logging discovery mechanism is
@@ -71,6 +75,7 @@ public class LogFactory {
      * Private constructor that is not available for public use.
      */
     private LogFactory() {
+    	// 从serviceLoader加载log类
         // Look via a ServiceLoader for a Log implementation that has a
         // constructor taking the String name.
         ServiceLoader<Log> logLoader = ServiceLoader.load(Log.class);
@@ -85,7 +90,7 @@ public class LogFactory {
                 throw new Error(e);
             }
         }
-        discoveredLogConstructor=m;
+        discoveredLogConstructor=m;				//此处加载到空
     }
 
 
@@ -111,7 +116,7 @@ public class LogFactory {
      *  instance cannot be returned
      */
     public Log getInstance(String name) throws LogConfigurationException {
-        if (discoveredLogConstructor == null) {
+        if (discoveredLogConstructor == null) {						//如果discoveredLogConstructor为空，使用DirectJDKLog类作为log
             return DirectJDKLog.getInstance(name);
         }
 

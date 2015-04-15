@@ -31,6 +31,10 @@ import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 
 /**
+ * 
+ * 加载Catalina的工具类工厂方法要求要求一下参数去构建一个新的类装载器
+ * 
+ * 
  * <p>Utility class for building class loaders for Catalina.  The factory
  * method requires the following parameters in order to build a new class
  * loader (with suitable defaults in all cases):</p>
@@ -56,6 +60,10 @@ public final class ClassLoaderFactory {
 
 
     /**
+     * 
+     * 构建一个类加载器，根据默认设置和特殊路径
+     * 
+     * 
      * Create and return a new class loader, based on the configuration
      * defaults and the specified directory paths:
      *
@@ -135,10 +143,10 @@ public final class ClassLoaderFactory {
      * Create and return a new class loader, based on the configuration
      * defaults and the specified directory paths:
      *
-     * @param repositories List of class directories, jar files, jar directories
+     * @param repositories 类仓库  List of class directories, jar files, jar directories
      *                     or URLS that should be added to the repositories of
      *                     the class loader.
-     * @param parent Parent class loader for the new class loader, or
+     * @param parent 父加载器 Parent class loader for the new class loader, or
      *  <code>null</code> for the system class loader.
      *
      * @exception Exception if an error occurs constructing the class loader
@@ -150,18 +158,21 @@ public final class ClassLoaderFactory {
         if (log.isDebugEnabled())
             log.debug("Creating new class loader");
 
+        //为类装载器构造类路径
         // Construct the "class path" for this class loader
         Set<URL> set = new LinkedHashSet<>();
 
         if (repositories != null) {
-            for (Repository repository : repositories)  {
-                if (repository.getType() == RepositoryType.URL) {
+            for (Repository repository : repositories)  {						//遍历仓库
+                if (repository.getType() == RepositoryType.URL) {				
+                	//url类型参数，直接插入
                     URL url = new URL(repository.getLocation());
                     if (log.isDebugEnabled())
                         log.debug("  Including URL " + url);
                     set.add(url);
                 } else if (repository.getType() == RepositoryType.DIR) {
-                    File directory = new File(repository.getLocation());
+                    //路径类型参数，验证成功则转换为url插入
+                	File directory = new File(repository.getLocation());
                     directory = directory.getCanonicalFile();
                     if (!validateFile(directory, RepositoryType.DIR)) {
                         continue;
@@ -171,6 +182,7 @@ public final class ClassLoaderFactory {
                         log.debug("  Including directory " + url);
                     set.add(url);
                 } else if (repository.getType() == RepositoryType.JAR) {
+                	//jar类型参数，验证成功转换为jar插入
                     File file=new File(repository.getLocation());
                     file = file.getCanonicalFile();
                     if (!validateFile(file, RepositoryType.JAR)) {
@@ -181,6 +193,7 @@ public final class ClassLoaderFactory {
                         log.debug("  Including jar file " + url);
                     set.add(url);
                 } else if (repository.getType() == RepositoryType.GLOB) {
+                	//通配符类型路径
                     File directory=new File(repository.getLocation());
                     directory = directory.getCanonicalFile();
                     if (!validateFile(directory, RepositoryType.GLOB)) {
@@ -189,7 +202,8 @@ public final class ClassLoaderFactory {
                     if (log.isDebugEnabled())
                         log.debug("  Including directory glob "
                             + directory.getAbsolutePath());
-                    String filenames[] = directory.list();
+                    //提取所有。jar文件，如果验证成功，转换为url插入
+                    String filenames[] = directory.list();								
                     for (int j = 0; j < filenames.length; j++) {
                         String filename = filenames[j].toLowerCase(Locale.ENGLISH);
                         if (!filename.endsWith(".jar"))
@@ -231,7 +245,9 @@ public final class ClassLoaderFactory {
     private static boolean validateFile(File file,
             RepositoryType type) throws IOException {
         if (RepositoryType.DIR == type || RepositoryType.GLOB == type) {
+        	//路径或者通配符类型
             if (!file.exists() || !file.isDirectory() || !file.canRead()) {
+            	//不存在，不是路径，不可读
                 String msg = "Problem with directory [" + file +
                         "], exists: [" + file.exists() +
                         "], isDirectory: [" + file.isDirectory() +
@@ -243,6 +259,8 @@ public final class ClassLoaderFactory {
                 base = base.getCanonicalFile();
                 File defaultValue = new File(base, "lib");
 
+                //使用${catalina.base}/lib是可选项
+                //home与base路径不同切file路径与base/lib路径相同，且file存在，不报错？
                 // Existence of ${catalina.base}/lib directory is optional.
                 // Hide the warning if Tomcat runs with separate catalina.home
                 // and catalina.base and that directory is absent.
@@ -256,6 +274,7 @@ public final class ClassLoaderFactory {
                 return false;
             }
         } else if (RepositoryType.JAR == type) {
+        	//如果类型是jar，但文件不存在，返回验证失败
             if (!file.exists() || !file.canRead()) {
                 log.warn("Problem with JAR file [" + file +
                         "], exists: [" + file.exists() +
@@ -263,12 +282,16 @@ public final class ClassLoaderFactory {
                 return false;
             }
         }
-        return true;
+        return true;			//验证成功
     }
 
     public static enum RepositoryType {
+
+        /**普通路径*/
         DIR,
+        /**通配符类型路径*/
         GLOB,
+        /**指定jar包*/
         JAR,
         URL
     }

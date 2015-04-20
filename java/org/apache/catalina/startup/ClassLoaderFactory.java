@@ -230,6 +230,7 @@ public final class ClassLoaderFactory {
                 log.debug("  location " + i + " is " + array[i]);
             }
 
+        /**通过AccessController获得权限，加载ClassLoader*/
         return AccessController.doPrivileged(
                 new PrivilegedAction<URLClassLoader>() {
                     @Override
@@ -285,6 +286,7 @@ public final class ClassLoaderFactory {
         return true;			//验证成功
     }
 
+    /**jar包仓库类型*/
     public static enum RepositoryType {
 
         /**普通路径*/
@@ -296,8 +298,11 @@ public final class ClassLoaderFactory {
         URL
     }
 
+    /**jar包仓库，包含位置和类型两个参数*/
     public static class Repository {
+    	/**位置*/
         private final String location;
+        /**类型*/
         private final RepositoryType type;
 
         public Repository(String location, RepositoryType type) {

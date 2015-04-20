@@ -61,6 +61,8 @@ public class StringManager {
     private final Locale locale;
 
     /**
+     * 根据包名构建一个新的StringManager，这是一个私有方法，只能通过getManager的静态方法获得实例，从而使得每个包名只有一个StringManager
+     * 
      * Creates a new StringManager for a given package. This is a
      * private method and all access to it is arbitrated by the
      * static getManager method call so that only one StringManager
@@ -72,8 +74,12 @@ public class StringManager {
         String bundleName = packageName + ".LocalStrings";
         ResourceBundle bnd = null;
         try {
+        	//默认加载stringBundle方法，从包内加载
             bnd = ResourceBundle.getBundle(bundleName, locale);
         } catch( MissingResourceException ex ) {
+        	//尝试从当前的类加载器加载，（只为信任的app）
+        	//TC5是什么？不懂
+        	
             // Try from the current loader (that's the case for trusted apps)
             // Should only be required if using a TC5 style classloader structure
             // where common != shared != server
@@ -87,6 +93,7 @@ public class StringManager {
             }
         }
         bundle = bnd;
+        //获得实际的可能与请求的语言不通的语言，设置自身的locale
         // Get the actual locale, which may be different from the requested one
         if (bundle != null) {
             Locale bundleLocale = bundle.getLocale();
@@ -101,6 +108,9 @@ public class StringManager {
     }
 
     /**
+     * 返回存在的资源文本，不存在返回空
+     * 
+     * 
         Get a string from the underlying resource bundle or return
         null if the String is not found.
 
@@ -119,11 +129,18 @@ public class StringManager {
         String str = null;
 
         try {
+        	//避免空指针错误，使他变成一个类似于MissingResourceException错误
             // Avoid NPE if bundle is null and treat it like an MRE
             if (bundle != null) {
                 str = bundle.getString(key);
             }
         } catch(MissingResourceException mre) {
+        	
+        	//缺点：实际错误将会被隐藏
+        	//优点：不会产生冗余代码
+        	//更好：返回空，后续代码只需做空指针判断
+        	
+        	
             //bad: shouldn't mask an exception the following way:
             //   str = "[cannot find message associated with key '" + key +
             //         "' due to " + mre + "]";
@@ -142,6 +159,10 @@ public class StringManager {
     }
 
     /**
+     * 
+     * 根据key获得文本并根据MessageFormat参数格式化，获得value为null将直接使用key格式化
+     * 
+     * 
      * Get a string from the underlying resource bundle and format
      * it with the given set of arguments.
      *
@@ -167,13 +188,21 @@ public class StringManager {
     }
 
     // --------------------------------------------------------------
-    // STATIC SUPPORT METHODS
+    // STATIC SUPPORT METHODS 静态支持
     // --------------------------------------------------------------
 
+    /**
+     * 使用一个HashTable作为对象管理，（出于线程安全考虑？）
+     * 每个包对应一个表
+     * 
+     * */
     private static final Map<String, Map<Locale,StringManager>> managers =
             new Hashtable<>();
 
     /**
+     * 获根据包名得一个StringManager，如果存在包对应的manager，使用旧有的，否则构建一个新的管理器
+     * 
+     * 
      * Get the StringManager for a particular package. If a manager for
      * a package already exists, it will be reused, else a new
      * StringManager will be created and returned.
@@ -186,6 +215,10 @@ public class StringManager {
     }
 
     /**
+     * 
+     * 获根据包名得一个StringManager，如果存在包对应的manager，使用旧有的，否则构建一个新的管理器
+     * 
+     *  
      * Get the StringManager for a particular package and Locale. If a manager
      * for a package/Locale combination already exists, it will be reused, else
      * a new StringManager will be created and returned.
@@ -199,6 +232,8 @@ public class StringManager {
         Map<Locale,StringManager> map = managers.get(packageName);
         if (map == null) {
             /*
+             * 不想让HashMap超过 LOCALE_CACHE_SIZE
+             * 
              * Don't want the HashMap to be expanded beyond LOCALE_CACHE_SIZE.
              * Expansion occurs when size() exceeds capacity. Therefore keep
              * size at or below capacity.
@@ -211,16 +246,17 @@ public class StringManager {
                 @Override
                 protected boolean removeEldestEntry(
                         Map.Entry<Locale,StringManager> eldest) {
-                    if (size() > (LOCALE_CACHE_SIZE - 1)) {
+                    if (size() > (LOCALE_CACHE_SIZE - 1)) {				//如果超过最大容量，丢弃最老的entry
                         return true;
                     }
                     return false;
                 }
             };
-            managers.put(packageName, map);
+            managers.put(packageName, map);	//将表插入managers
         }
 
-        StringManager mgr = map.get(locale);
+        //根据语言获得管理器，不存在则重新构建插入
+        StringManager mgr = map.get(locale);				
         if (mgr == null) {
             mgr = new StringManager(packageName, locale);
             map.put(locale, mgr);
@@ -229,6 +265,9 @@ public class StringManager {
     }
 
     /**
+     * 
+     * 从多个语言中找出一个StringManager，第一个找到的StringManager会被返回，全部找不到返回默认的
+     * 
      * Retrieve the StringManager for a list of Locales. The first StringManager
      * found will be returned.
      *

@@ -69,6 +69,8 @@ public class Catalina {
 
 
     /**
+     * StringManager 此处在包内加载LocalStrings.properties
+     * 
      * The string manager for this package.
      */
     protected static final StringManager sm =
@@ -149,6 +151,9 @@ public class Catalina {
 
 
     /**
+     * 
+     * 设置共享拓展类加载器
+     * 
      * Set the shared extensions class loader.
      *
      * @param parentClassLoader The shared extensions class loader.
@@ -214,19 +219,20 @@ public class Catalina {
         boolean isConfig = false;
 
         if (args.length < 1) {
-            usage();
+            usage();						//打印使用帮助
             return false;
         }
 
+        //循环解析参数
         for (int i = 0; i < args.length; i++) {
-            if (isConfig) {
+            if (isConfig) {									//config文件
                 configFile = args[i];
                 isConfig = false;
             } else if (args[i].equals("-config")) {
                 isConfig = true;
-            } else if (args[i].equals("-nonaming")) {
+            } else if (args[i].equals("-nonaming")) {		//命名？
                 setUseNaming(false);
-            } else if (args[i].equals("-help")) {
+            } else if (args[i].equals("-help")) {			//显示帮助
                 usage();
                 return false;
             } else if (args[i].equals("start")) {
@@ -476,9 +482,9 @@ public class Catalina {
      */
     public void load() {
 
-        long t1 = System.nanoTime();
+        long t1 = System.nanoTime();				//获得纳秒（用于计时）
 
-        initDirs();
+        initDirs();						
 
         // Before digester - it may be needed
         initNaming();
@@ -728,7 +734,7 @@ public class Catalina {
 
     }
 
-
+    /**构建临时文件路径*/
     protected void initDirs() {
         String temp = System.getProperty("java.io.tmpdir");
         if (temp == null || (!(new File(temp)).isDirectory())) {
@@ -771,6 +777,8 @@ public class Catalina {
                 log.debug( "INITIAL_CONTEXT_FACTORY already set " + value );
             }
         }
+        
+        
     }
 
 

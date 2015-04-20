@@ -159,6 +159,7 @@ public final class Bootstrap {
         try {
             commonLoader = createClassLoader("common", null);
             if( commonLoader == null ) {
+            	// 没有配置文件，默认使用这个类加载器，
                 // no config file, default to this loader - we might be in a 'single' env.
                 commonLoader=this.getClass().getClassLoader();
             }
@@ -282,38 +283,41 @@ public final class Bootstrap {
      */
     public void init() throws Exception {
 
-        initClassLoaders();
+        initClassLoaders();													//初始化类加载器
 
-        Thread.currentThread().setContextClassLoader(catalinaLoader);
+        Thread.currentThread().setContextClassLoader(catalinaLoader);		//设置当前线程的类加载器
 
-        SecurityClassLoad.securityClassLoad(catalinaLoader);
-
+        SecurityClassLoad.securityClassLoad(catalinaLoader);				//一个用于SecurityManager预加载java类 ，确保 defineClassInPackage RuntimePermission不会触发AccessControlException错误
+        
         // Load our startup class and call its process() method
         if (log.isDebugEnabled())
             log.debug("Loading startup class");
         Class<?> startupClass =
             catalinaLoader.loadClass
-            ("org.apache.catalina.startup.Catalina");
+            ("org.apache.catalina.startup.Catalina");						//加载catalina类并实例化一个对象
         Object startupInstance = startupClass.newInstance();
 
+        //设置Catalina拓展类加载器为sharedLoader
         // Set the shared extensions class loader
         if (log.isDebugEnabled())
             log.debug("Setting startup class properties");
-        String methodName = "setParentClassLoader";
+        String methodName = "setParentClassLoader";							
         Class<?> paramTypes[] = new Class[1];
         paramTypes[0] = Class.forName("java.lang.ClassLoader");
         Object paramValues[] = new Object[1];
         paramValues[0] = sharedLoader;
         Method method =
-            startupInstance.getClass().getMethod(methodName, paramTypes);
+            startupInstance.getClass().getMethod(methodName, paramTypes);	
         method.invoke(startupInstance, paramValues);
 
-        catalinaDaemon = startupInstance;
+        catalinaDaemon = startupInstance;									//赋值catalina
 
     }
 
 
     /**
+     * 调用catalinaDaemon的load方法，传入参数
+     * 
      * Load daemon.
      */
     private void load(String[] arguments)
@@ -432,13 +436,15 @@ public final class Bootstrap {
 
 
     /**
+     * 设置catalinaDaemon的await
+     * 
      * Set flag.
      */
     public void setAwait(boolean await)
         throws Exception {
 
         Class<?> paramTypes[] = new Class[1];
-        paramTypes[0] = Boolean.TYPE;
+        paramTypes[0] = Boolean.TYPE;						//获得boolean的类，等价于boolean.class
         Object paramValues[] = new Object[1];
         paramValues[0] = Boolean.valueOf(await);
         Method method =
@@ -499,12 +505,15 @@ public final class Bootstrap {
             Thread.currentThread().setContextClassLoader(daemon.catalinaLoader);
         }
 
+        //获取启动参数
         try {
-            String command = "start";
-            if (args.length > 0) {
+            String command = "start";				//默认参数
+            //获取最后一个参数（如果存在）
+            if (args.length > 0) {					
                 command = args[args.length - 1];
             }
 
+            //startd讲不await
             if (command.equals("startd")) {
                 args[args.length - 1] = "start";
                 daemon.load(args);
